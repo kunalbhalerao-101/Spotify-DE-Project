@@ -1,0 +1,23 @@
+{
+	"name": "git_json_sink",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "LS_AzureDataLake",
+			"type": "LinkedServiceReference"
+		},
+		"folder": {
+			"name": "GitHub"
+		},
+		"annotations": [],
+		"type": "Json",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobFSLocation",
+				"folderPath": "jsonfiles",
+				"fileSystem": "destination"
+			}
+		},
+		"schema": {}
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}

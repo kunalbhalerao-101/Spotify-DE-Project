@@ -1,0 +1,31 @@
+{
+	"name": "DS_JD_Source_pdf",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "LS_AzureDataLake",
+			"type": "LinkedServiceReference"
+		},
+		"parameters": {
+			"FileType": {
+				"type": "string"
+			}
+		},
+		"folder": {
+			"name": "JobDoc"
+		},
+		"annotations": [],
+		"type": "Binary",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobFSLocation",
+				"fileName": {
+					"value": "@dataset().FileType",
+					"type": "Expression"
+				},
+				"folderPath": "Kunal",
+				"fileSystem": "destination"
+			}
+		}
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}

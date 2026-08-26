@@ -1,0 +1,15 @@
+{
+	"name": "azure-data-factory-pipelines",
+	"properties": {
+		"trustModeClaimForMi": {
+			"value": "Disabled",
+			"editable": true
+		}
+	},
+	"location": "eastus",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "00448dc5-4a27-45b2-a32d-24fa94e5f464",
+		"tenantId": "58c054e5-f24a-4157-a37b-b86fccbf3dba"
+	}
+}

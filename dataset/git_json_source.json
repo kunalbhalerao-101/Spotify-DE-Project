@@ -1,0 +1,22 @@
+{
+	"name": "git_json_source",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "LS_Github",
+			"type": "LinkedServiceReference"
+		},
+		"folder": {
+			"name": "GitHub"
+		},
+		"annotations": [],
+		"type": "Json",
+		"typeProperties": {
+			"location": {
+				"type": "HttpServerLocation",
+				"relativeUrl": "anshlambagit/spotify_azure_project/main/cdc.json"
+			}
+		},
+		"schema": {}
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}

@@ -1,0 +1,22 @@
+{
+	"name": "DS_JD_MD",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "LS_AzureDataLake",
+			"type": "LinkedServiceReference"
+		},
+		"folder": {
+			"name": "JobDoc"
+		},
+		"annotations": [],
+		"type": "Binary",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobFSLocation",
+				"folderPath": "Kunal",
+				"fileSystem": "destination"
+			}
+		}
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}
