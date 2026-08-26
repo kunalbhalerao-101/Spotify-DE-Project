@@ -1,5 +1,5 @@
 {
-	"name": "CopyData_Source_Json",
+	"name": "CopyData1_Source_Json",
 	"properties": {
 		"linkedServiceName": {
 			"referenceName": "LS_AzureSqlDB",

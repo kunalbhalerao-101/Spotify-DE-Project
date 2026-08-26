@@ -58,7 +58,7 @@
 				},
 				"inputs": [
 					{
-						"referenceName": "CopyData_Source_Json",
+						"referenceName": "CopyData1_Source_Json",
 						"type": "DatasetReference"
 					}
 				],
