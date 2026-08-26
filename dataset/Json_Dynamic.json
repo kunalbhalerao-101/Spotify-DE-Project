@@ -16,6 +16,9 @@
 				"type": "string"
 			}
 		},
+		"folder": {
+			"name": "Spotify_Project"
+		},
 		"annotations": [],
 		"type": "Json",
 		"typeProperties": {
