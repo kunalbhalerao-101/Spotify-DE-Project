@@ -139,9 +139,14 @@
 			{
 				"name": "If Incremental Data",
 				"type": "IfCondition",
-				"state": "Inactive",
-				"onInactiveMarkAs": "Succeeded",
-				"dependsOn": [],
+				"dependsOn": [
+					{
+						"activity": "AzSql_To_DataLake",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
 				"userProperties": [],
 				"typeProperties": {
 					"expression": {
@@ -288,7 +293,7 @@
 									{
 										"type": "Query",
 										"text": {
-											"value": "select MAX(@{activity('Last_cdc').output.value[0].cdc}) as cdc\nfrom @{pipeline().parameters.schema}.@{pipeline().parameters.table}",
+											"value": "SELECT MAX(@{pipeline().parameters.cdc_col}) AS cdc\nFROM @{pipeline().parameters.schema}.@{pipeline().parameters.table}",
 											"type": "Expression"
 										}
 									}
