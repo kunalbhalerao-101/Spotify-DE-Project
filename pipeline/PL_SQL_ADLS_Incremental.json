@@ -292,6 +292,34 @@
 					],
 					"ifTrueActivities": [
 						{
+							"name": "Get_New_FactSales_Watermark",
+							"type": "Lookup",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "AzureSqlSource",
+									"sqlReaderQuery": {
+										"value": "@concat(\n    'SELECT MAX(LastModifiedDate) AS NewWatermark ',\n    'FROM dbo.FactSales ',\n    'WHERE LastModifiedDate > ''',\n    activity('Lookup_FactSales_Watermark').output.firstRow.LastWatermark,\n    ''''\n)",
+										"type": "Expression"
+									},
+									"queryTimeout": "02:00:00",
+									"partitionOption": "None"
+								},
+								"dataset": {
+									"referenceName": "ChatGpt_SQL_FactSales",
+									"type": "DatasetReference"
+								}
+							}
+						},
+						{
 							"name": "Update_FactSales_Watermark",
 							"type": "SqlServerStoredProcedure",
 							"dependsOn": [
@@ -322,7 +350,7 @@
 									},
 									"TableName": {
 										"value": {
-											"value": "FactSales",
+											"value": "@pipeline().parameters.TableName",
 											"type": "Expression"
 										},
 										"type": "String"
@@ -332,34 +360,6 @@
 							"linkedServiceName": {
 								"referenceName": "LS_AzureSqlDB",
 								"type": "LinkedServiceReference"
-							}
-						},
-						{
-							"name": "Get_New_FactSales_Watermark",
-							"type": "Lookup",
-							"dependsOn": [],
-							"policy": {
-								"timeout": "0.12:00:00",
-								"retry": 0,
-								"retryIntervalInSeconds": 30,
-								"secureOutput": false,
-								"secureInput": false
-							},
-							"userProperties": [],
-							"typeProperties": {
-								"source": {
-									"type": "AzureSqlSource",
-									"sqlReaderQuery": {
-										"value": "@concat(\n    'SELECT MAX(LastModifiedDate) AS NewWatermark ',\n    'FROM dbo.FactSales ',\n    'WHERE LastModifiedDate > ''',\n    activity('Lookup_FactSales_Watermark').output.firstRow.LastWatermark,\n    ''''\n)",
-										"type": "Expression"
-									},
-									"queryTimeout": "02:00:00",
-									"partitionOption": "None"
-								},
-								"dataset": {
-									"referenceName": "ChatGpt_SQL_FactSales",
-									"type": "DatasetReference"
-								}
 							}
 						}
 					]
