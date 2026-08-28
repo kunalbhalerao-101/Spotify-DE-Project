@@ -1,5 +1,5 @@
 {
-	"name": "ChatGpt_ADLS_FactSales_Parquet",
+	"name": "ChatGpt_ADLS_FactSales_Sink",
 	"properties": {
 		"linkedServiceName": {
 			"referenceName": "LS_AzureDataLake",

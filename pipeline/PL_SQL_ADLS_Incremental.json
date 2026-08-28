@@ -170,13 +170,13 @@
 				},
 				"inputs": [
 					{
-						"referenceName": "ChatGpt_SQL_FactSales",
+						"referenceName": "ChatGpt_SQL_FactSales_source",
 						"type": "DatasetReference"
 					}
 				],
 				"outputs": [
 					{
-						"referenceName": "ChatGpt_ADLS_FactSales_Parquet",
+						"referenceName": "ChatGpt_ADLS_FactSales_Sink",
 						"type": "DatasetReference",
 						"parameters": {
 							"TableName": {
@@ -268,7 +268,7 @@
 							"userProperties": [],
 							"typeProperties": {
 								"dataset": {
-									"referenceName": "ChatGpt_ADLS_FactSales_Parquet",
+									"referenceName": "ChatGpt_ADLS_FactSales_Sink",
 									"type": "DatasetReference",
 									"parameters": {
 										"TableName": {
@@ -314,7 +314,7 @@
 									"partitionOption": "None"
 								},
 								"dataset": {
-									"referenceName": "ChatGpt_SQL_FactSales",
+									"referenceName": "ChatGpt_SQL_FactSales_source",
 									"type": "DatasetReference"
 								}
 							}

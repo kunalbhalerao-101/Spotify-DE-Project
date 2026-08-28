@@ -1,5 +1,5 @@
 {
-	"name": "ChatGpt_SQL_FactSales",
+	"name": "ChatGpt_SQL_FactSales_source",
 	"properties": {
 		"linkedServiceName": {
 			"referenceName": "LS_AzureSqlDB",
