@@ -1,0 +1,38 @@
+{
+	"name": "ChatGpt_ADLS_FactSales_Parquet",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "LS_AzureDataLake",
+			"type": "LinkedServiceReference"
+		},
+		"parameters": {
+			"TableName": {
+				"type": "string"
+			},
+			"FileName": {
+				"type": "string"
+			}
+		},
+		"folder": {
+			"name": "ChatGpt Project"
+		},
+		"annotations": [],
+		"type": "Parquet",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobFSLocation",
+				"fileName": {
+					"value": "@dataset().FileName",
+					"type": "Expression"
+				},
+				"folderPath": {
+					"value": "sql/@{dataset().TableName}",
+					"type": "Expression"
+				},
+				"fileSystem": "gpt-bronze"
+			},
+			"compressionCodec": "snappy"
+		},
+		"schema": []
+	}
+}
