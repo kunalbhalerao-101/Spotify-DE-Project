@@ -31,7 +31,7 @@
 					"source": {
 						"type": "AzureSqlSource",
 						"sqlReaderQuery": {
-							"value": "@concat(\n    'SELECT * FROM dbo.FactSales WHERE LastModifiedDate > ''',\n    activity('Lookup_FactSales_Watermark').output.firstRow.LastWatermark,\n    ''''\n)",
+							"value": "@concat(\n    'SELECT * FROM dbo.FactSales ',\n    'WHERE LastModifiedDate > ''',\n    if(\n        empty(activity('Lookup_FactSales_Watermark').output.firstRow.LastWatermark),\n        '1900-01-01 00:00:00',\n        activity('Lookup_FactSales_Watermark').output.firstRow.LastWatermark\n    ),\n    ''''\n)",
 							"type": "Expression"
 						},
 						"queryTimeout": "02:00:00",
@@ -207,7 +207,7 @@
 					"source": {
 						"type": "AzureSqlSource",
 						"sqlReaderQuery": {
-							"value": "SELECT\n    TableName,\n    WatermarkColumn,\n    LastWatermark\nFROM dbo.ETL_Control\nWHERE TableName = 'FactSales';",
+							"value": "SELECT\n    TableName,\n    LastWatermark,\n    LoadStatus\nFROM dbo.ETL_Control\nWHERE TableName = 'FactSales';",
 							"type": "Expression"
 						},
 						"queryTimeout": "02:00:00",
@@ -307,7 +307,7 @@
 								"source": {
 									"type": "AzureSqlSource",
 									"sqlReaderQuery": {
-										"value": "@concat(\n    'SELECT MAX(LastModifiedDate) AS NewWatermark ',\n    'FROM dbo.FactSales ',\n    'WHERE LastModifiedDate > ''',\n    activity('Lookup_FactSales_Watermark').output.firstRow.LastWatermark,\n    ''''\n)",
+										"value": "@concat(\n    'SELECT MAX(LastModifiedDate) AS NewWatermark ',\n    'FROM dbo.FactSales ',\n    'WHERE LastModifiedDate > ''',\n    if(\n        empty(activity('Lookup_FactSales_Watermark').output.firstRow.LastWatermark),\n        '1900-01-01 00:00:00',\n        activity('Lookup_FactSales_Watermark').output.firstRow.LastWatermark\n    ),\n    ''''\n)",
 										"type": "Expression"
 									},
 									"queryTimeout": "02:00:00",
@@ -343,7 +343,7 @@
 								"storedProcedureParameters": {
 									"NewWatermark": {
 										"value": {
-											"value": "@formatDateTime(\n    activity('Get_New_FactSales_Watermark').output.firstRow.NewWatermark,\n    'yyyy-MM-dd HH:mm:ss'\n)",
+											"value": "@formatDateTime(\n    activity('Get_New_FactSales_Watermark').output.firstRow.NewWatermark,\n    'yyyy-MM-dd HH:mm:ss.fff'\n)",
 											"type": "Expression"
 										},
 										"type": "DateTime"
