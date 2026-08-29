@@ -188,7 +188,7 @@
 								"type": "Expression"
 							},
 							"Container": {
-								"value": "@pipeline().parameters.FolderName",
+								"value": "@pipeline().parameters.Container",
 								"type": "Expression"
 							}
 						}
@@ -211,7 +211,7 @@
 					"source": {
 						"type": "AzureSqlSource",
 						"sqlReaderQuery": {
-							"value": "SELECT\n    TableName,\n    LastWatermark,\n    LoadStatus\nFROM dbo.ETL_Control\nWHERE TableName = 'FactSales';",
+							"value": "SELECT\n    TableName,\n    LastWatermark,\n    LoadStatus\nFROM dbo.ETL_Control\nWHERE TableName = '@{pipeline().parameters.TableName}';",
 							"type": "Expression"
 						},
 						"queryTimeout": "02:00:00",
@@ -284,7 +284,7 @@
 											"type": "Expression"
 										},
 										"Container": {
-											"value": "@pipeline().parameters.FolderName",
+											"value": "@pipeline().parameters.Container",
 											"type": "Expression"
 										}
 									}
@@ -375,7 +375,7 @@
 			}
 		],
 		"parameters": {
-			"FolderName": {
+			"Container": {
 				"type": "string"
 			},
 			"TableName": {
