@@ -222,7 +222,7 @@
 											"source": {
 												"type": "AzureSqlSource",
 												"sqlReaderQuery": {
-													"value": "@concat(\n    'SELECT MAX(LastModifiedDate) AS NewWatermark ',\n    'FROM dbo.FactSales ',\n    'WHERE LastModifiedDate > ''',\n    if(\n        empty(activity('Lookup_ETL_Control').output.firstRow.LastWatermark),\n        '1900-01-01 00:00:00',\n        activity('Lookup_ETL_Control').output.firstRow.LastWatermark\n    ),\n    ''''\n)",
+													"value": "@concat(\n    'SELECT MAX(',\n    item().WatermarkColumn,\n    ') AS NewWatermark FROM ',\n    item().SourceSchema,\n    '.',\n    item().TableName\n)",
 													"type": "Expression"
 												},
 												"queryTimeout": "02:00:00",
