@@ -5,14 +5,6 @@
 			"referenceName": "LS_AzureSqlDB",
 			"type": "LinkedServiceReference"
 		},
-		"parameters": {
-			"Schema": {
-				"type": "string"
-			},
-			"TableName": {
-				"type": "string"
-			}
-		},
 		"folder": {
 			"name": "Dynamic SQL"
 		},
