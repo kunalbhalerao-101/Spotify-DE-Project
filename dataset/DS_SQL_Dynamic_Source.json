@@ -1,0 +1,68 @@
+{
+	"name": "DS_SQL_Dynamic_Source",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "LS_AzureSqlDB",
+			"type": "LinkedServiceReference"
+		},
+		"parameters": {
+			"Schema": {
+				"type": "string"
+			},
+			"TableName": {
+				"type": "string"
+			}
+		},
+		"folder": {
+			"name": "Dynamic DS"
+		},
+		"annotations": [],
+		"type": "AzureSqlTable",
+		"schema": [
+			{
+				"name": "TableName",
+				"type": "nvarchar"
+			},
+			{
+				"name": "SourceSchema",
+				"type": "nvarchar"
+			},
+			{
+				"name": "WatermarkColumn",
+				"type": "nvarchar"
+			},
+			{
+				"name": "LastWatermark",
+				"type": "datetime2",
+				"scale": 3
+			},
+			{
+				"name": "LastLoadTime",
+				"type": "datetime2",
+				"scale": 3
+			},
+			{
+				"name": "LoadType",
+				"type": "nvarchar"
+			},
+			{
+				"name": "SinkPath",
+				"type": "nvarchar"
+			},
+			{
+				"name": "IsActive",
+				"type": "bit"
+			}
+		],
+		"typeProperties": {
+			"schema": {
+				"value": "@dataset().Schema",
+				"type": "Expression"
+			},
+			"table": {
+				"value": "@dataset().TableName",
+				"type": "Expression"
+			}
+		}
+	}
+}
