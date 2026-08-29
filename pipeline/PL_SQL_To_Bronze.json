@@ -152,6 +152,143 @@
 									"type": "Expression"
 								}
 							}
+						},
+						{
+							"name": "If_NewRows_Added_in_FactSales",
+							"type": "IfCondition",
+							"dependsOn": [
+								{
+									"activity": "Copy data",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"expression": {
+									"value": "@greater(activity('Copy data').output.rowsCopied,0)",
+									"type": "Expression"
+								},
+								"ifFalseActivities": [
+									{
+										"name": "Delete",
+										"type": "Delete",
+										"dependsOn": [],
+										"policy": {
+											"timeout": "0.12:00:00",
+											"retry": 0,
+											"retryIntervalInSeconds": 30,
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"dataset": {
+												"referenceName": "DS_ADLS_Dynamic_Parquet",
+												"type": "DatasetReference",
+												"parameters": {
+													"Container": "gpt-bronze",
+													"Folder": "@concat('sql/', item().TableName)",
+													"FileName": {
+														"value": "@concat(\n    item().TableName,\n    '_',\n    formatDateTime(variables('Current'),'yyyy-MM-dd_HH-mm-ss'),\n    '.parquet'\n)",
+														"type": "Expression"
+													}
+												}
+											},
+											"enableLogging": false,
+											"storeSettings": {
+												"type": "AzureBlobFSReadSettings",
+												"recursive": true,
+												"enablePartitionDiscovery": false
+											}
+										}
+									}
+								],
+								"ifTrueActivities": [
+									{
+										"name": "Get_New_Watermark",
+										"type": "Lookup",
+										"dependsOn": [],
+										"policy": {
+											"timeout": "0.12:00:00",
+											"retry": 0,
+											"retryIntervalInSeconds": 30,
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"source": {
+												"type": "AzureSqlSource",
+												"sqlReaderQuery": {
+													"value": "@concat(\n    'SELECT MAX(LastModifiedDate) AS NewWatermark ',\n    'FROM dbo.FactSales ',\n    'WHERE LastModifiedDate > ''',\n    if(\n        empty(activity('Lookup_ETL_Control').output.firstRow.LastWatermark),\n        '1900-01-01 00:00:00',\n        activity('Lookup_ETL_Control').output.firstRow.LastWatermark\n    ),\n    ''''\n)",
+													"type": "Expression"
+												},
+												"queryTimeout": "02:00:00",
+												"partitionOption": "None"
+											},
+											"dataset": {
+												"referenceName": "DS_SQL_Dynamic_Source",
+												"type": "DatasetReference",
+												"parameters": {
+													"Schema": {
+														"value": "@item().SourceSchema",
+														"type": "Expression"
+													},
+													"TableName": {
+														"value": "@item().TableName",
+														"type": "Expression"
+													}
+												}
+											}
+										}
+									},
+									{
+										"name": "Update_Watermark",
+										"type": "SqlServerStoredProcedure",
+										"dependsOn": [
+											{
+												"activity": "Get_New_Watermark",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"timeout": "0.12:00:00",
+											"retry": 0,
+											"retryIntervalInSeconds": 30,
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"storedProcedureName": "[dbo].[usp_UpdateWatermark]",
+											"storedProcedureParameters": {
+												"NewWatermark": {
+													"value": {
+														"value": "@formatDateTime(\n    activity('Get_New_Watermark').output.firstRow.NewWatermark,\n    'yyyy-MM-dd HH:mm:ss.fff'\n)",
+														"type": "Expression"
+													},
+													"type": "DateTime"
+												},
+												"TableName": {
+													"value": {
+														"value": "@item().TableName",
+														"type": "Expression"
+													},
+													"type": "String"
+												}
+											}
+										},
+										"linkedServiceName": {
+											"referenceName": "LS_AzureSqlDB",
+											"type": "LinkedServiceReference"
+										}
+									}
+								]
+							}
 						}
 					]
 				}
