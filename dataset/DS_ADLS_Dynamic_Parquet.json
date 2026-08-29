@@ -16,6 +16,9 @@
 				"type": "string"
 			}
 		},
+		"folder": {
+			"name": "Dynamic DS"
+		},
 		"annotations": [],
 		"type": "Parquet",
 		"typeProperties": {
