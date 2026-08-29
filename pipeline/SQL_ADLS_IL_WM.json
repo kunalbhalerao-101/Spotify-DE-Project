@@ -1,5 +1,5 @@
 {
-	"name": "PL_SQL_ADLS_Incremental",
+	"name": "SQL_ADLS_IL_WM",
 	"properties": {
 		"activities": [
 			{
@@ -186,6 +186,10 @@
 							"FileName": {
 								"value": "@concat(\n    pipeline().parameters.TableName,\n    '_',\n    formatDateTime(variables('current'), 'yyyy-MM-dd HH:mm:ss'),\n    '.parquet'\n)",
 								"type": "Expression"
+							},
+							"Container": {
+								"value": "@pipeline().parameters.FolderName",
+								"type": "Expression"
 							}
 						}
 					}
@@ -278,6 +282,10 @@
 										"FileName": {
 											"value": "@concat(\n    pipeline().parameters.TableName,\n    '_',\n    formatDateTime(variables('current'), 'yyyy-MM-dd HH:mm:ss'),\n    '.parquet'\n)",
 											"type": "Expression"
+										},
+										"Container": {
+											"value": "@pipeline().parameters.FolderName",
+											"type": "Expression"
 										}
 									}
 								},
@@ -367,6 +375,9 @@
 			}
 		],
 		"parameters": {
+			"FolderName": {
+				"type": "string"
+			},
 			"TableName": {
 				"type": "string"
 			}
