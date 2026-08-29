@@ -1,0 +1,24 @@
+{
+	"name": "Dynamic_SQL",
+	"properties": {
+		"annotations": [],
+		"runtimeState": "Started",
+		"pipelines": [
+			{
+				"pipelineReference": {
+					"referenceName": "PL_SQL_To_Bronze",
+					"type": "PipelineReference"
+				}
+			}
+		],
+		"type": "ScheduleTrigger",
+		"typeProperties": {
+			"recurrence": {
+				"frequency": "Hour",
+				"interval": 3,
+				"startTime": "2026-08-29T20:22:00",
+				"timeZone": "India Standard Time"
+			}
+		}
+	}
+}
