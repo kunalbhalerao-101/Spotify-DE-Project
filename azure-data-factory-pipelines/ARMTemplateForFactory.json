@@ -1156,7 +1156,7 @@
 													"type": "Expression"
 												},
 												"FileName": {
-													"value": "@concat(\n    item().TableName,\n    '_',\n    formatDateTime(variables('Current'),'yyyy-MM-dd_HH-mm-ss'),\n    '.parquet'\n)",
+													"value": "@concat(\n    item().TableName,\n    '_',\n    formatDateTime(variables('Current'),'yyyy-MM-dd | HH:mm:ss'),\n    '.parquet'\n)",
 													"type": "Expression"
 												}
 											}
@@ -1218,7 +1218,7 @@
 															"Container": "gpt-bronze",
 															"Folder": "@concat('sql/', item().TableName)",
 															"FileName": {
-																"value": "@concat(\n    item().TableName,\n    '_',\n    formatDateTime(variables('Current'),'yyyy-MM-dd_HH-mm-ss'),\n    '.parquet'\n)",
+																"value": "@concat(\n    item().TableName,\n    '_',\n    formatDateTime(variables('Current'),'yyyy-MM-dd | HH:mm:ss'),\n    '.parquet'\n)",
 																"type": "Expression"
 															}
 														}
