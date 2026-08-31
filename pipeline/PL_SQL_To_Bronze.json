@@ -231,7 +231,10 @@
 													"type": "String"
 												},
 												"TableName": {
-													"value": "@item().TableName",
+													"value": {
+														"value": "@item().TableName",
+														"type": "Expression"
+													},
 													"type": "String"
 												}
 											}
@@ -351,7 +354,10 @@
 													"type": "String"
 												},
 												"TableName": {
-													"value": "@item().TableName",
+													"value": {
+														"value": "@item().TableName",
+														"type": "Expression"
+													},
 													"type": "String"
 												}
 											}
