@@ -1249,6 +1249,46 @@
 														"enablePartitionDiscovery": false
 													}
 												}
+											},
+											{
+												"name": "Update_Status_Success",
+												"type": "SqlServerStoredProcedure",
+												"dependsOn": [
+													{
+														"activity": "Delete",
+														"dependencyConditions": [
+															"Succeeded"
+														]
+													}
+												],
+												"policy": {
+													"timeout": "0.12:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"storedProcedureName": "[[dbo].[usp_UpdateLoadStatus]",
+													"storedProcedureParameters": {
+														"LoadStatus": {
+															"value": "Succeeded",
+															"type": "String"
+														},
+														"TableName": {
+															"value": {
+																"value": "@item().TableName",
+																"type": "Expression"
+															},
+															"type": "String"
+														}
+													}
+												},
+												"linkedServiceName": {
+													"referenceName": "LS_AzureSqlDB",
+													"type": "LinkedServiceReference"
+												}
 											}
 										],
 										"ifTrueActivities": [
@@ -1314,7 +1354,7 @@
 													"storedProcedureParameters": {
 														"NewWatermark": {
 															"value": {
-																"value": "@formatDateTime(\n    activity('Get_New_Watermark').output.firstRow.NewWatermark,\n    'yyyy-MM-dd HH:mm:ss.fff'\n)",
+																"value": "@formatDateTime(activity('Get_New_Watermark').output.firstRow.NewWatermark, 'yyyy-MM-dd HH:mm:ss.fff')",
 																"type": "Expression"
 															},
 															"type": "DateTime"
@@ -1332,8 +1372,88 @@
 													"referenceName": "LS_AzureSqlDB",
 													"type": "LinkedServiceReference"
 												}
+											},
+											{
+												"name": "Update_Status_Succeeded",
+												"type": "SqlServerStoredProcedure",
+												"dependsOn": [
+													{
+														"activity": "Update_Watermark",
+														"dependencyConditions": [
+															"Succeeded"
+														]
+													}
+												],
+												"policy": {
+													"timeout": "0.12:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"storedProcedureName": "[[dbo].[usp_UpdateLoadStatus]",
+													"storedProcedureParameters": {
+														"LoadStatus": {
+															"value": "Succeeded",
+															"type": "String"
+														},
+														"TableName": {
+															"value": {
+																"value": "@item().TableName",
+																"type": "Expression"
+															},
+															"type": "String"
+														}
+													}
+												},
+												"linkedServiceName": {
+													"referenceName": "LS_AzureSqlDB",
+													"type": "LinkedServiceReference"
+												}
 											}
 										]
+									}
+								},
+								{
+									"name": "Update_Status_Failed",
+									"type": "SqlServerStoredProcedure",
+									"dependsOn": [
+										{
+											"activity": "Copy data",
+											"dependencyConditions": [
+												"Failed"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"storedProcedureName": "[[dbo].[usp_UpdateLoadStatus]",
+										"storedProcedureParameters": {
+											"LoadStatus": {
+												"value": "Failed",
+												"type": "String"
+											},
+											"TableName": {
+												"value": {
+													"value": "@item().TableName",
+													"type": "Expression"
+												},
+												"type": "String"
+											}
+										}
+									},
+									"linkedServiceName": {
+										"referenceName": "LS_AzureSqlDB",
+										"type": "LinkedServiceReference"
 									}
 								}
 							]
