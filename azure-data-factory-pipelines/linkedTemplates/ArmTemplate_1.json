@@ -13,6 +13,51 @@
 	},
 	"resources": [
 		{
+			"name": "[concat(parameters('factoryName'), '/DS_SQL_ETL_Control')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "LS_AzureSqlDB",
+					"type": "LinkedServiceReference"
+				},
+				"folder": {
+					"name": "ChatGpt Project"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "TableName",
+						"type": "varchar"
+					},
+					{
+						"name": "WatermarkColumn",
+						"type": "varchar"
+					},
+					{
+						"name": "LastWatermark",
+						"type": "datetime2",
+						"scale": 7
+					},
+					{
+						"name": "LastLoadTime",
+						"type": "datetime2",
+						"scale": 7
+					},
+					{
+						"name": "LoadStatus",
+						"type": "varchar"
+					}
+				],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": "ETL_Control"
+				}
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/Dynamic_SQL_ETL_Control')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
@@ -1042,7 +1087,7 @@
 			"dependsOn": []
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/PL_SQL_To_Bronze')]",
+			"name": "[concat(parameters('factoryName'), '/PL_SQL_To_ADLS')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
 			"properties": {
@@ -1052,7 +1097,7 @@
 						"type": "ForEach",
 						"dependsOn": [
 							{
-								"activity": "Lookup_Active_Tables",
+								"activity": "Lookup_All_Tables",
 								"dependencyConditions": [
 									"Succeeded"
 								]
@@ -1061,7 +1106,7 @@
 						"userProperties": [],
 						"typeProperties": {
 							"items": {
-								"value": "@activity('Lookup_Active_Tables').output.value",
+								"value": "@activity('Lookup_All_Tables').output.value",
 								"type": "Expression"
 							},
 							"activities": [
@@ -1105,7 +1150,7 @@
 											]
 										},
 										{
-											"activity": "Current",
+											"activity": "Current Timestamp",
 											"dependencyConditions": [
 												"Succeeded"
 											]
@@ -1183,7 +1228,7 @@
 									]
 								},
 								{
-									"name": "Current",
+									"name": "Current Timestamp",
 									"type": "SetVariable",
 									"dependsOn": [],
 									"policy": {
@@ -1200,7 +1245,7 @@
 									}
 								},
 								{
-									"name": "If_NewRows_Added_in_FactSales",
+									"name": "If_NewRows_Added",
 									"type": "IfCondition",
 									"dependsOn": [
 										{
@@ -1293,7 +1338,7 @@
 										],
 										"ifTrueActivities": [
 											{
-												"name": "Get_New_Watermark",
+												"name": "New_Watermark",
 												"type": "Lookup",
 												"dependsOn": [],
 												"policy": {
@@ -1335,7 +1380,7 @@
 												"type": "SqlServerStoredProcedure",
 												"dependsOn": [
 													{
-														"activity": "Get_New_Watermark",
+														"activity": "New_Watermark",
 														"dependencyConditions": [
 															"Succeeded"
 														]
@@ -1354,7 +1399,7 @@
 													"storedProcedureParameters": {
 														"NewWatermark": {
 															"value": {
-																"value": "@formatDateTime(activity('Get_New_Watermark').output.firstRow.NewWatermark, 'yyyy-MM-dd HH:mm:ss.fff')",
+																"value": "@formatDateTime(activity('New_Watermark').output.firstRow.NewWatermark, 'yyyy-MM-dd HH:mm:ss.fff')",
 																"type": "Expression"
 															},
 															"type": "DateTime"
@@ -1374,7 +1419,7 @@
 												}
 											},
 											{
-												"name": "Update_Status_Succeeded",
+												"name": "successful",
 												"type": "SqlServerStoredProcedure",
 												"dependsOn": [
 													{
@@ -1417,7 +1462,7 @@
 									}
 								},
 								{
-									"name": "Update_Status_Failed",
+									"name": "Update_Failed",
 									"type": "SqlServerStoredProcedure",
 									"dependsOn": [
 										{
@@ -1460,7 +1505,473 @@
 						}
 					},
 					{
-						"name": "Lookup_Active_Tables",
+						"name": "Lookup_All_Tables",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": {
+									"value": "SELECT\n    TableName,\n    SourceSchema,\n    WatermarkColumn,\n    IsActive\nFROM dbo.ETL_Control\nWHERE IsActive = 1;",
+									"type": "Expression"
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "Dynamic_SQL_ETL_Control",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"firstRowOnly": false
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"variables": {
+					"Current": {
+						"type": "String"
+					}
+				},
+				"folder": {
+					"name": "Dynamic"
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/Dynamic_SQL_ETL_Control')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/PL_SQL_To_ADLS_Databricks')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "ForEach",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "Lookup_All_Tables",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Lookup_All_Tables').output.value",
+								"type": "Expression"
+							},
+							"activities": [
+								{
+									"name": "Lookup_ETL_Control",
+									"type": "Lookup",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "AzureSqlSource",
+											"sqlReaderQuery": {
+												"value": "SELECT\n    TableName,\n    SourceSchema,\n    WatermarkColumn,\n    LastWatermark,\n    LastLoadTime,\n    LoadType\nFROM dbo.ETL_Control\nWHERE TableName = '@{item().TableName}';",
+												"type": "Expression"
+											},
+											"queryTimeout": "02:00:00",
+											"partitionOption": "None"
+										},
+										"dataset": {
+											"referenceName": "Dynamic_SQL_ETL_Control",
+											"type": "DatasetReference",
+											"parameters": {}
+										}
+									}
+								},
+								{
+									"name": "Copy data",
+									"type": "Copy",
+									"dependsOn": [
+										{
+											"activity": "Lookup_ETL_Control",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										},
+										{
+											"activity": "Current Timestamp",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "AzureSqlSource",
+											"sqlReaderQuery": {
+												"value": "@concat(\n    'SELECT * FROM ',\n    item().SourceSchema,\n    '.',\n    item().TableName,\n    ' WHERE ',\n    item().WatermarkColumn,\n    ' > ''',\n    string(activity('Lookup_ETL_Control').output.firstRow.LastWatermark),\n    ''''\n)",
+												"type": "Expression"
+											},
+											"queryTimeout": "02:00:00",
+											"partitionOption": "None"
+										},
+										"sink": {
+											"type": "ParquetSink",
+											"storeSettings": {
+												"type": "AzureBlobFSWriteSettings"
+											},
+											"formatSettings": {
+												"type": "ParquetWriteSettings"
+											}
+										},
+										"enableStaging": false,
+										"translator": {
+											"type": "TabularTranslator",
+											"typeConversion": true,
+											"typeConversionSettings": {
+												"allowDataTruncation": true,
+												"treatBooleanAsNumber": false
+											}
+										}
+									},
+									"inputs": [
+										{
+											"referenceName": "DS_SQL_Dynamic_Source",
+											"type": "DatasetReference",
+											"parameters": {
+												"Schema": {
+													"value": "@item().SourceSchema",
+													"type": "Expression"
+												},
+												"TableName": {
+													"value": "@item().TableName",
+													"type": "Expression"
+												}
+											}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "DS_ADLS_Dynamic_Parquet",
+											"type": "DatasetReference",
+											"parameters": {
+												"Container": "gpt-bronze",
+												"Folder": {
+													"value": "@concat('sql/', item().TableName)",
+													"type": "Expression"
+												},
+												"FileName": {
+													"value": "@concat(\n    item().TableName,\n    '_',\n    formatDateTime(variables('Current'),'yyyy-MM-dd | HH:mm:ss'),\n    '.parquet'\n)",
+													"type": "Expression"
+												}
+											}
+										}
+									]
+								},
+								{
+									"name": "Current Timestamp",
+									"type": "SetVariable",
+									"dependsOn": [],
+									"policy": {
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"variableName": "Current",
+										"value": {
+											"value": "@convertFromUtc(utcNow(), 'India Standard Time')\n",
+											"type": "Expression"
+										}
+									}
+								},
+								{
+									"name": "If_NewRows_Added",
+									"type": "IfCondition",
+									"dependsOn": [
+										{
+											"activity": "Copy data",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"userProperties": [],
+									"typeProperties": {
+										"expression": {
+											"value": "@greater(activity('Copy data').output.rowsCopied,0)",
+											"type": "Expression"
+										},
+										"ifFalseActivities": [
+											{
+												"name": "Delete",
+												"type": "Delete",
+												"dependsOn": [],
+												"policy": {
+													"timeout": "0.12:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"dataset": {
+														"referenceName": "DS_ADLS_Dynamic_Parquet",
+														"type": "DatasetReference",
+														"parameters": {
+															"Container": "gpt-bronze",
+															"Folder": "@concat('sql/', item().TableName)",
+															"FileName": {
+																"value": "@concat(\n    item().TableName,\n    '_',\n    formatDateTime(variables('Current'),'yyyy-MM-dd | HH:mm:ss'),\n    '.parquet'\n)",
+																"type": "Expression"
+															}
+														}
+													},
+													"enableLogging": false,
+													"storeSettings": {
+														"type": "AzureBlobFSReadSettings",
+														"recursive": true,
+														"enablePartitionDiscovery": false
+													}
+												}
+											},
+											{
+												"name": "Update_Status_Success",
+												"type": "SqlServerStoredProcedure",
+												"dependsOn": [
+													{
+														"activity": "Delete",
+														"dependencyConditions": [
+															"Succeeded"
+														]
+													}
+												],
+												"policy": {
+													"timeout": "0.12:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"storedProcedureName": "[[dbo].[usp_UpdateLoadStatus]",
+													"storedProcedureParameters": {
+														"LoadStatus": {
+															"value": "Succeeded",
+															"type": "String"
+														},
+														"TableName": {
+															"value": {
+																"value": "@item().TableName",
+																"type": "Expression"
+															},
+															"type": "String"
+														}
+													}
+												},
+												"linkedServiceName": {
+													"referenceName": "LS_AzureSqlDB",
+													"type": "LinkedServiceReference"
+												}
+											}
+										],
+										"ifTrueActivities": [
+											{
+												"name": "New_Watermark",
+												"type": "Lookup",
+												"dependsOn": [],
+												"policy": {
+													"timeout": "0.12:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"source": {
+														"type": "AzureSqlSource",
+														"sqlReaderQuery": {
+															"value": "@concat(\n    'SELECT MAX(',\n    item().WatermarkColumn,\n    ') AS NewWatermark FROM ',\n    item().SourceSchema,\n    '.',\n    item().TableName\n)",
+															"type": "Expression"
+														},
+														"queryTimeout": "02:00:00",
+														"partitionOption": "None"
+													},
+													"dataset": {
+														"referenceName": "DS_SQL_Dynamic_Source",
+														"type": "DatasetReference",
+														"parameters": {
+															"Schema": {
+																"value": "@item().SourceSchema",
+																"type": "Expression"
+															},
+															"TableName": {
+																"value": "@item().TableName",
+																"type": "Expression"
+															}
+														}
+													}
+												}
+											},
+											{
+												"name": "Update_Watermark",
+												"type": "SqlServerStoredProcedure",
+												"dependsOn": [
+													{
+														"activity": "New_Watermark",
+														"dependencyConditions": [
+															"Succeeded"
+														]
+													}
+												],
+												"policy": {
+													"timeout": "0.12:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"storedProcedureName": "[[dbo].[usp_UpdateWatermark]",
+													"storedProcedureParameters": {
+														"NewWatermark": {
+															"value": {
+																"value": "@formatDateTime(activity('New_Watermark').output.firstRow.NewWatermark, 'yyyy-MM-dd HH:mm:ss.fff')",
+																"type": "Expression"
+															},
+															"type": "DateTime"
+														},
+														"TableName": {
+															"value": {
+																"value": "@item().TableName",
+																"type": "Expression"
+															},
+															"type": "String"
+														}
+													}
+												},
+												"linkedServiceName": {
+													"referenceName": "LS_AzureSqlDB",
+													"type": "LinkedServiceReference"
+												}
+											},
+											{
+												"name": "successful",
+												"type": "SqlServerStoredProcedure",
+												"dependsOn": [
+													{
+														"activity": "Update_Watermark",
+														"dependencyConditions": [
+															"Succeeded"
+														]
+													}
+												],
+												"policy": {
+													"timeout": "0.12:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"storedProcedureName": "[[dbo].[usp_UpdateLoadStatus]",
+													"storedProcedureParameters": {
+														"LoadStatus": {
+															"value": "Succeeded",
+															"type": "String"
+														},
+														"TableName": {
+															"value": {
+																"value": "@item().TableName",
+																"type": "Expression"
+															},
+															"type": "String"
+														}
+													}
+												},
+												"linkedServiceName": {
+													"referenceName": "LS_AzureSqlDB",
+													"type": "LinkedServiceReference"
+												}
+											}
+										]
+									}
+								},
+								{
+									"name": "Update_Failed",
+									"type": "SqlServerStoredProcedure",
+									"dependsOn": [
+										{
+											"activity": "Copy data",
+											"dependencyConditions": [
+												"Failed"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"storedProcedureName": "[[dbo].[usp_UpdateLoadStatus]",
+										"storedProcedureParameters": {
+											"LoadStatus": {
+												"value": "Failed",
+												"type": "String"
+											},
+											"TableName": {
+												"value": {
+													"value": "@item().TableName",
+													"type": "Expression"
+												},
+												"type": "String"
+											}
+										}
+									},
+									"linkedServiceName": {
+										"referenceName": "LS_AzureSqlDB",
+										"type": "LinkedServiceReference"
+									}
+								}
+							]
+						}
+					},
+					{
+						"name": "Lookup_All_Tables",
 						"type": "Lookup",
 						"dependsOn": [],
 						"policy": {
@@ -1909,7 +2420,9 @@
 				},
 				"annotations": []
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/DS_SQL_ETL_Control')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/copy csv')]",
@@ -2345,37 +2858,6 @@
 			},
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/dataflows/dataflow')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/Dynamic_SQL')]",
-			"type": "Microsoft.DataFactory/factories/triggers",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"annotations": [],
-				"runtimeState": "Stopped",
-				"pipelines": [
-					{
-						"pipelineReference": {
-							"referenceName": "PL_SQL_To_Bronze",
-							"type": "PipelineReference"
-						},
-						"parameters": {}
-					}
-				],
-				"type": "ScheduleTrigger",
-				"typeProperties": {
-					"recurrence": {
-						"frequency": "Minute",
-						"interval": 5,
-						"startTime": "2026-08-29T20:24:00",
-						"endTime": "2026-08-31T05:19:01",
-						"timeZone": "India Standard Time"
-					}
-				}
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/pipelines/PL_SQL_To_Bronze')]"
 			]
 		}
 	]
