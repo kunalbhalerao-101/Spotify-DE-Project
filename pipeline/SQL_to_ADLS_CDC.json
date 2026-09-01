@@ -16,7 +16,7 @@
 				"userProperties": [],
 				"typeProperties": {
 					"items": {
-						"value": "@activity('Lookup_All_Tables').output.value",
+						"value": "@activity('All_Tables').output.value",
 						"type": "Expression"
 					},
 					"activities": [
@@ -273,7 +273,10 @@
 											"storedProcedureName": "[dbo].[Update_CDC_Control]",
 											"storedProcedureParameters": {
 												"LastProcessedLSN": {
-													"value": "@activity('Lookup_Current_Max_LSN').output.firstRow.CurrentMaxLSN",
+													"value": {
+														"value": "@activity('Current_Max_LSN').output.firstRow.CurrentMaxLSN",
+														"type": "Expression"
+													},
 													"type": "String"
 												},
 												"LastRunDate": {
