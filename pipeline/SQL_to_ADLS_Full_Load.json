@@ -1,5 +1,5 @@
 {
-	"name": "PL_SQL_To_ADLS_copy1",
+	"name": "SQL_to_ADLS_Full_Load",
 	"properties": {
 		"activities": [
 			{
@@ -119,7 +119,7 @@
 									"parameters": {
 										"Container": "gpt-bronze",
 										"Folder": {
-											"value": "@concat('sql/', item().TableName)",
+											"value": "@concat('sql/','Full_Load/' ,item().TableName)",
 											"type": "Expression"
 										},
 										"FileName": {
@@ -237,7 +237,10 @@
 												"type": "DatasetReference",
 												"parameters": {
 													"Container": "gpt-bronze",
-													"Folder": "@concat('sql/', item().TableName)",
+													"Folder": {
+														"value": "@concat('sql/','Full_Load/' ,item().TableName)",
+														"type": "Expression"
+													},
 													"FileName": {
 														"value": "@concat(\n    item().TableName,\n    '_',\n    formatDateTime(variables('Current'),'yyyy-MM-dd | HH:mm:ss'),\n    '.parquet'\n)",
 														"type": "Expression"

@@ -1,5 +1,5 @@
 {
-	"name": "SQL_to_ADLS_Normal_Load",
+	"name": "SQL_to_ADLS_CDC",
 	"properties": {
 		"activities": [
 			{
@@ -21,7 +21,7 @@
 					},
 					"activities": [
 						{
-							"name": "Lookup_ETL_Control",
+							"name": "Lookup_CDC_Control",
 							"type": "Lookup",
 							"dependsOn": [],
 							"policy": {
@@ -36,14 +36,14 @@
 								"source": {
 									"type": "AzureSqlSource",
 									"sqlReaderQuery": {
-										"value": "SELECT\n    TableName,\n    SourceSchema,\n    WatermarkColumn,\n    LastWatermark,\n    LastLoadTime,\n    LoadType\nFROM dbo.ETL_Control\nWHERE TableName = '@{item().TableName}';",
+										"value": "SELECT\n    TableName,\n    CaptureInstance,\n    CONVERT(VARCHAR(100), LastProcessedLSN, 2) AS LastProcessedLSN,\n    IsActive\nFROM dbo.CDC_Control\nWHERE TableName = '@{item().TableName}'\n  AND IsActive = 1;",
 										"type": "Expression"
 									},
 									"queryTimeout": "02:00:00",
 									"partitionOption": "None"
 								},
 								"dataset": {
-									"referenceName": "Dynamic_SQL_ETL_Control",
+									"referenceName": "Dynamic_SQL_CDC_Control",
 									"type": "DatasetReference"
 								}
 							}
@@ -53,13 +53,7 @@
 							"type": "Copy",
 							"dependsOn": [
 								{
-									"activity": "Lookup_ETL_Control",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								},
-								{
-									"activity": "Current Timestamp",
+									"activity": "Lookup_Current_Max_LSN",
 									"dependencyConditions": [
 										"Succeeded"
 									]
@@ -77,7 +71,7 @@
 								"source": {
 									"type": "AzureSqlSource",
 									"sqlReaderQuery": {
-										"value": "@concat(\n    'SELECT * FROM ',\n    item().SourceSchema,\n    '.',\n    item().TableName,\n    ' WHERE ',\n    item().WatermarkColumn,\n    ' > ''',\n    string(activity('Lookup_ETL_Control').output.firstRow.LastWatermark),\n    ''''\n)",
+										"value": "@concat(\n    'SELECT * FROM cdc.',\n    activity('Lookup_CDC_Control').output.firstRow.CaptureInstance,\n    '_CT WHERE __$start_lsn > CONVERT(binary(10), ''',\n    activity('Lookup_CDC_Control').output.firstRow.LastProcessedLSN,\n    ''', 2) AND __$start_lsn <= CONVERT(binary(10), ''',\n    activity('Lookup_Current_Max_LSN').output.firstRow.CurrentMaxLSN,\n    ''', 2)'\n)",
 										"type": "Expression"
 									},
 									"queryTimeout": "02:00:00",
@@ -125,7 +119,7 @@
 									"parameters": {
 										"Container": "gpt-bronze",
 										"Folder": {
-											"value": "@concat('sql/', item().TableName)",
+											"value": "@concat('sql/','CDC_Load/' ,item().TableName)",
 											"type": "Expression"
 										},
 										"FileName": {
@@ -154,7 +148,7 @@
 							}
 						},
 						{
-							"name": "If_NewRows_Added",
+							"name": "If_CDC_Changes_Added",
 							"type": "IfCondition",
 							"dependsOn": [
 								{
@@ -172,9 +166,63 @@
 								},
 								"ifFalseActivities": [
 									{
+										"name": "Update_CDC_Control_S",
+										"type": "SqlServerStoredProcedure",
+										"dependsOn": [],
+										"policy": {
+											"timeout": "0.12:00:00",
+											"retry": 0,
+											"retryIntervalInSeconds": 30,
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"storedProcedureName": "[dbo].[Update_CDC_Control]",
+											"storedProcedureParameters": {
+												"LastProcessedLSN": {
+													"value": {
+														"value": "@activity('Lookup_Current_Max_LSN').output.firstRow.CurrentMaxLSN",
+														"type": "Expression"
+													},
+													"type": "String"
+												},
+												"LastRunDate": {
+													"value": {
+														"value": "@variables('Current')",
+														"type": "Expression"
+													},
+													"type": "DateTime"
+												},
+												"LoadStatus": {
+													"value": "Success",
+													"type": "String"
+												},
+												"TableName": {
+													"value": {
+														"value": "@item().TableName",
+														"type": "Expression"
+													},
+													"type": "String"
+												}
+											}
+										},
+										"linkedServiceName": {
+											"referenceName": "LS_AzureSqlDB",
+											"type": "LinkedServiceReference"
+										}
+									},
+									{
 										"name": "Delete",
 										"type": "Delete",
-										"dependsOn": [],
+										"dependsOn": [
+											{
+												"activity": "Update_CDC_Control_S",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
 										"policy": {
 											"timeout": "0.12:00:00",
 											"retry": 0,
@@ -189,7 +237,10 @@
 												"type": "DatasetReference",
 												"parameters": {
 													"Container": "gpt-bronze",
-													"Folder": "@concat('sql/', item().TableName)",
+													"Folder": {
+														"value": "@concat('sql/','CDC_Load/' ,item().TableName)",
+														"type": "Expression"
+													},
 													"FileName": {
 														"value": "@concat(\n    item().TableName,\n    '_',\n    formatDateTime(variables('Current'),'yyyy-MM-dd | HH:mm:ss'),\n    '.parquet'\n)",
 														"type": "Expression"
@@ -203,52 +254,12 @@
 												"enablePartitionDiscovery": false
 											}
 										}
-									},
-									{
-										"name": "Update_Status_Success",
-										"type": "SqlServerStoredProcedure",
-										"dependsOn": [
-											{
-												"activity": "Delete",
-												"dependencyConditions": [
-													"Succeeded"
-												]
-											}
-										],
-										"policy": {
-											"timeout": "0.12:00:00",
-											"retry": 0,
-											"retryIntervalInSeconds": 30,
-											"secureOutput": false,
-											"secureInput": false
-										},
-										"userProperties": [],
-										"typeProperties": {
-											"storedProcedureName": "[dbo].[usp_UpdateLoadStatus]",
-											"storedProcedureParameters": {
-												"LoadStatus": {
-													"value": "Succeeded",
-													"type": "String"
-												},
-												"TableName": {
-													"value": {
-														"value": "@item().TableName",
-														"type": "Expression"
-													},
-													"type": "String"
-												}
-											}
-										},
-										"linkedServiceName": {
-											"referenceName": "LS_AzureSqlDB",
-											"type": "LinkedServiceReference"
-										}
 									}
 								],
 								"ifTrueActivities": [
 									{
-										"name": "New_Watermark",
-										"type": "Lookup",
+										"name": "Update_CDC_Control",
+										"type": "SqlServerStoredProcedure",
 										"dependsOn": [],
 										"policy": {
 											"timeout": "0.12:00:00",
@@ -259,98 +270,21 @@
 										},
 										"userProperties": [],
 										"typeProperties": {
-											"source": {
-												"type": "AzureSqlSource",
-												"sqlReaderQuery": {
-													"value": "@concat(\n    'SELECT MAX(',\n    item().WatermarkColumn,\n    ') AS NewWatermark FROM ',\n    item().SourceSchema,\n    '.',\n    item().TableName\n)",
-													"type": "Expression"
-												},
-												"queryTimeout": "02:00:00",
-												"partitionOption": "None"
-											},
-											"dataset": {
-												"referenceName": "DS_SQL_Dynamic_Source",
-												"type": "DatasetReference",
-												"parameters": {
-													"Schema": {
-														"value": "@item().SourceSchema",
-														"type": "Expression"
-													},
-													"TableName": {
-														"value": "@item().TableName",
-														"type": "Expression"
-													}
-												}
-											}
-										}
-									},
-									{
-										"name": "Update_Watermark",
-										"type": "SqlServerStoredProcedure",
-										"dependsOn": [
-											{
-												"activity": "New_Watermark",
-												"dependencyConditions": [
-													"Succeeded"
-												]
-											}
-										],
-										"policy": {
-											"timeout": "0.12:00:00",
-											"retry": 0,
-											"retryIntervalInSeconds": 30,
-											"secureOutput": false,
-											"secureInput": false
-										},
-										"userProperties": [],
-										"typeProperties": {
-											"storedProcedureName": "[dbo].[usp_UpdateWatermark]",
+											"storedProcedureName": "[dbo].[Update_CDC_Control]",
 											"storedProcedureParameters": {
-												"NewWatermark": {
+												"LastProcessedLSN": {
+													"value": "@activity('Lookup_Current_Max_LSN').output.firstRow.CurrentMaxLSN",
+													"type": "String"
+												},
+												"LastRunDate": {
 													"value": {
-														"value": "@formatDateTime(activity('New_Watermark').output.firstRow.NewWatermark, 'yyyy-MM-dd HH:mm:ss.fff')",
+														"value": "@variables('Current')",
 														"type": "Expression"
 													},
 													"type": "DateTime"
 												},
-												"TableName": {
-													"value": {
-														"value": "@item().TableName",
-														"type": "Expression"
-													},
-													"type": "String"
-												}
-											}
-										},
-										"linkedServiceName": {
-											"referenceName": "LS_AzureSqlDB",
-											"type": "LinkedServiceReference"
-										}
-									},
-									{
-										"name": "successful",
-										"type": "SqlServerStoredProcedure",
-										"dependsOn": [
-											{
-												"activity": "Update_Watermark",
-												"dependencyConditions": [
-													"Succeeded"
-												]
-											}
-										],
-										"policy": {
-											"timeout": "0.12:00:00",
-											"retry": 0,
-											"retryIntervalInSeconds": 30,
-											"secureOutput": false,
-											"secureInput": false
-										},
-										"userProperties": [],
-										"typeProperties": {
-											"storedProcedureName": "[dbo].[usp_UpdateLoadStatus]",
-											"storedProcedureParameters": {
 												"LoadStatus": {
-													"value": "Succeeded",
+													"value": "Success",
 													"type": "String"
 												},
 												"TableName": {
@@ -371,7 +305,48 @@
 							}
 						},
 						{
-							"name": "Update_Failed",
+							"name": "Lookup_Current_Max_LSN",
+							"type": "Lookup",
+							"dependsOn": [
+								{
+									"activity": "Lookup_CDC_Control",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								},
+								{
+									"activity": "Current Timestamp",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "AzureSqlSource",
+									"sqlReaderQuery": {
+										"value": "@concat(\n    'SELECT CONVERT(VARCHAR(100), MAX(__$start_lsn), 2) AS CurrentMaxLSN ',\n    'FROM cdc.',\n    activity('Lookup_CDC_Control').output.firstRow.CaptureInstance,\n    '_CT'\n)",
+										"type": "Expression"
+									},
+									"queryTimeout": "02:00:00",
+									"partitionOption": "None"
+								},
+								"dataset": {
+									"referenceName": "Dynamic_SQL_ETL_Control",
+									"type": "DatasetReference"
+								}
+							}
+						},
+						{
+							"name": "Update_CDC_Control_Failed",
 							"type": "SqlServerStoredProcedure",
 							"dependsOn": [
 								{
@@ -390,8 +365,15 @@
 							},
 							"userProperties": [],
 							"typeProperties": {
-								"storedProcedureName": "[dbo].[usp_UpdateLoadStatus]",
+								"storedProcedureName": "[dbo].[Update_CDC_Control]",
 								"storedProcedureParameters": {
+									"LastRunDate": {
+										"value": {
+											"value": "@variables('Current')",
+											"type": "Expression"
+										},
+										"type": "DateTime"
+									},
 									"LoadStatus": {
 										"value": "Failed",
 										"type": "String"
