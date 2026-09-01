@@ -36,7 +36,7 @@
 								"source": {
 									"type": "AzureSqlSource",
 									"sqlReaderQuery": {
-										"value": "SELECT\n    TableName,\n    CaptureInstance,\n    LastProcessedLSN,\n    IsActive\nFROM dbo.CDC_Control\nWHERE TableName = '@{item().TableName}'\n  AND IsActive = 1;",
+										"value": "SELECT\n    TableName,\n    CaptureInstance,\n    CONVERT(VARCHAR(100), LastProcessedLSN, 2) AS LastProcessedLSN,\n    IsActive\nFROM dbo.CDC_Control\nWHERE TableName = '@{item().TableName}'\n  AND IsActive = 1;",
 										"type": "Expression"
 									},
 									"queryTimeout": "02:00:00",
@@ -71,7 +71,7 @@
 								"source": {
 									"type": "AzureSqlSource",
 									"sqlReaderQuery": {
-										"value": "@concat(\n'SELECT *\n FROM cdc.', \nactivity('Lookup_CDC_Control').output.firstRow.CaptureInstance,\n'_CT\n WHERE __$start_lsn > ',\n'CONVERT(binary(10), ''',\nactivity('Lookup_CDC_Control').output.firstRow.LastProcessedLSN,\n''', 1)\n AND __$start_lsn <= ',\n'CONVERT(binary(10), ''',\nactivity('Lookup_Current_Max_LSN').output.firstRow.CurrentMaxLSN,\n''', 1)'\n)",
+										"value": "@concat(\n    'SELECT * FROM cdc.',\n    activity('Lookup_CDC_Control').output.firstRow.CaptureInstance,\n    '_CT WHERE __$start_lsn > CONVERT(binary(10), ''',\n    activity('Lookup_CDC_Control').output.firstRow.LastProcessedLSN,\n    ''', 2) AND __$start_lsn <= CONVERT(binary(10), ''',\n    activity('Lookup_Current_Max_LSN').output.firstRow.CurrentMaxLSN,\n    ''', 2)'\n)",
 										"type": "Expression"
 									},
 									"queryTimeout": "02:00:00",
@@ -185,7 +185,7 @@
 														"value": "@activity('Lookup_Current_Max_LSN').output.firstRow.CurrentMaxLSN",
 														"type": "Expression"
 													},
-													"type": "Byte[]"
+													"type": "String"
 												},
 												"LastRunDate": {
 													"value": {
@@ -199,7 +199,10 @@
 													"type": "String"
 												},
 												"TableName": {
-													"value": "@item().TableName",
+													"value": {
+														"value": "@item().TableName",
+														"type": "Expression"
+													},
 													"type": "String"
 												}
 											}
@@ -207,6 +210,46 @@
 										"linkedServiceName": {
 											"referenceName": "LS_AzureSqlDB",
 											"type": "LinkedServiceReference"
+										}
+									},
+									{
+										"name": "Delete",
+										"type": "Delete",
+										"dependsOn": [
+											{
+												"activity": "Update_CDC_Control_S",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"timeout": "0.12:00:00",
+											"retry": 0,
+											"retryIntervalInSeconds": 30,
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"dataset": {
+												"referenceName": "DS_ADLS_Dynamic_Parquet",
+												"type": "DatasetReference",
+												"parameters": {
+													"Container": "gpt-bronze",
+													"Folder": "@concat('sql/', item().TableName)",
+													"FileName": {
+														"value": "@concat(\n    item().TableName,\n    '_',\n    formatDateTime(variables('Current'),'yyyy-MM-dd | HH:mm:ss'),\n    '.parquet'\n)",
+														"type": "Expression"
+													}
+												}
+											},
+											"enableLogging": false,
+											"storeSettings": {
+												"type": "AzureBlobFSReadSettings",
+												"recursive": true,
+												"enablePartitionDiscovery": false
+											}
 										}
 									}
 								],
@@ -227,11 +270,8 @@
 											"storedProcedureName": "[dbo].[Update_CDC_Control]",
 											"storedProcedureParameters": {
 												"LastProcessedLSN": {
-													"value": {
-														"value": "@activity('Lookup_Current_Max_LSN').output.firstRow.CurrentMaxLSN",
-														"type": "Expression"
-													},
-													"type": "Byte[]"
+													"value": "@activity('Lookup_Current_Max_LSN').output.firstRow.CurrentMaxLSN",
+													"type": "String"
 												},
 												"LastRunDate": {
 													"value": {
@@ -245,7 +285,10 @@
 													"type": "String"
 												},
 												"TableName": {
-													"value": "@item().TableName",
+													"value": {
+														"value": "@item().TableName",
+														"type": "Expression"
+													},
 													"type": "String"
 												}
 											}
@@ -287,7 +330,7 @@
 								"source": {
 									"type": "AzureSqlSource",
 									"sqlReaderQuery": {
-										"value": "SELECT\n    sys.fn_cdc_get_max_lsn() AS CurrentMaxLSN;",
+										"value": "@concat(\n    'SELECT CONVERT(VARCHAR(100), MAX(__$start_lsn), 2) AS CurrentMaxLSN ',\n    'FROM cdc.',\n    activity('Lookup_CDC_Control').output.firstRow.CaptureInstance,\n    '_CT'\n)",
 										"type": "Expression"
 									},
 									"queryTimeout": "02:00:00",
