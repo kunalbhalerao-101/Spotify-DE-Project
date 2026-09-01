@@ -1,5 +1,5 @@
 {
-	"name": "PL_SQL_To_Bronze_Databricks",
+	"name": "PL_SQL_To_ADLS",
 	"properties": {
 		"activities": [
 			{
@@ -16,7 +16,7 @@
 				"userProperties": [],
 				"typeProperties": {
 					"items": {
-						"value": "@activity('Lookup_Active_Tables').output.value",
+						"value": "@activity('Lookup_All_Tables').output.value",
 						"type": "Expression"
 					},
 					"activities": [
@@ -308,7 +308,7 @@
 											"storedProcedureParameters": {
 												"NewWatermark": {
 													"value": {
-														"value": "@formatDateTime(activity('Get_New_Watermark').output.firstRow.NewWatermark, 'yyyy-MM-dd HH:mm:ss.fff')",
+														"value": "@formatDateTime(activity('New_Watermark').output.firstRow.NewWatermark, 'yyyy-MM-dd HH:mm:ss.fff')",
 														"type": "Expression"
 													},
 													"type": "DateTime"
@@ -441,26 +441,6 @@
 					},
 					"firstRowOnly": false
 				}
-			},
-			{
-				"name": "Databricks",
-				"type": "DatabricksNotebook",
-				"dependsOn": [
-					{
-						"activity": "ForEach",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": []
 			}
 		],
 		"variables": {
