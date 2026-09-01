@@ -1,0 +1,41 @@
+{
+	"name": "Dynamic_SQL_CDC_Control",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "LS_AzureSqlDB",
+			"type": "LinkedServiceReference"
+		},
+		"folder": {
+			"name": "Dynamic DS"
+		},
+		"annotations": [],
+		"type": "AzureSqlTable",
+		"schema": [
+			{
+				"name": "TableName",
+				"type": "nvarchar"
+			},
+			{
+				"name": "CaptureInstance",
+				"type": "nvarchar"
+			},
+			{
+				"name": "LastProcessedLSN",
+				"type": "varbinary"
+			},
+			{
+				"name": "IsActive",
+				"type": "bit"
+			},
+			{
+				"name": "LastRunDate",
+				"type": "datetime2",
+				"scale": 7
+			}
+		],
+		"typeProperties": {
+			"schema": "dbo",
+			"table": "CDC_Control"
+		}
+	}
+}

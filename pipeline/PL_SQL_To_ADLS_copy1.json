@@ -1,0 +1,392 @@
+{
+	"name": "PL_SQL_To_ADLS_copy1",
+	"properties": {
+		"activities": [
+			{
+				"name": "ForEach",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Lookup_All_Tables",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('Lookup_All_Tables').output.value",
+						"type": "Expression"
+					},
+					"activities": [
+						{
+							"name": "Lookup_CDC_Control",
+							"type": "Lookup",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "AzureSqlSource",
+									"sqlReaderQuery": {
+										"value": "SELECT\n    TableName,\n    CaptureInstance,\n    LastProcessedLSN,\n    IsActive\nFROM dbo.CDC_Control\nWHERE TableName = '@{item().TableName}'\n  AND IsActive = 1;",
+										"type": "Expression"
+									},
+									"queryTimeout": "02:00:00",
+									"partitionOption": "None"
+								},
+								"dataset": {
+									"referenceName": "Dynamic_SQL_CDC_Control",
+									"type": "DatasetReference"
+								}
+							}
+						},
+						{
+							"name": "Copy data",
+							"type": "Copy",
+							"dependsOn": [
+								{
+									"activity": "Lookup_Current_Max_LSN",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "AzureSqlSource",
+									"sqlReaderQuery": {
+										"value": "@concat(\n'SELECT *\n FROM cdc.', \nactivity('Lookup_CDC_Control').output.firstRow.CaptureInstance,\n'_CT\n WHERE __$start_lsn > ',\n'CONVERT(binary(10), ''',\nactivity('Lookup_CDC_Control').output.firstRow.LastProcessedLSN,\n''', 1)\n AND __$start_lsn <= ',\n'CONVERT(binary(10), ''',\nactivity('Lookup_Current_Max_LSN').output.firstRow.CurrentMaxLSN,\n''', 1)'\n)",
+										"type": "Expression"
+									},
+									"queryTimeout": "02:00:00",
+									"partitionOption": "None"
+								},
+								"sink": {
+									"type": "ParquetSink",
+									"storeSettings": {
+										"type": "AzureBlobFSWriteSettings"
+									},
+									"formatSettings": {
+										"type": "ParquetWriteSettings"
+									}
+								},
+								"enableStaging": false,
+								"translator": {
+									"type": "TabularTranslator",
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": true,
+										"treatBooleanAsNumber": false
+									}
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "DS_SQL_Dynamic_Source",
+									"type": "DatasetReference",
+									"parameters": {
+										"Schema": {
+											"value": "@item().SourceSchema",
+											"type": "Expression"
+										},
+										"TableName": {
+											"value": "@item().TableName",
+											"type": "Expression"
+										}
+									}
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "DS_ADLS_Dynamic_Parquet",
+									"type": "DatasetReference",
+									"parameters": {
+										"Container": "gpt-bronze",
+										"Folder": {
+											"value": "@concat('sql/', item().TableName)",
+											"type": "Expression"
+										},
+										"FileName": {
+											"value": "@concat(\n    item().TableName,\n    '_',\n    formatDateTime(variables('Current'),'yyyy-MM-dd | HH:mm:ss'),\n    '.parquet'\n)",
+											"type": "Expression"
+										}
+									}
+								}
+							]
+						},
+						{
+							"name": "Current Timestamp",
+							"type": "SetVariable",
+							"dependsOn": [],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "Current",
+								"value": {
+									"value": "@convertFromUtc(utcNow(), 'India Standard Time')\n",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "If_CDC_Changes_Added",
+							"type": "IfCondition",
+							"dependsOn": [
+								{
+									"activity": "Copy data",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"expression": {
+									"value": "@greater(activity('Copy data').output.rowsCopied,0)",
+									"type": "Expression"
+								},
+								"ifFalseActivities": [
+									{
+										"name": "Update_CDC_Control_S",
+										"type": "SqlServerStoredProcedure",
+										"dependsOn": [],
+										"policy": {
+											"timeout": "0.12:00:00",
+											"retry": 0,
+											"retryIntervalInSeconds": 30,
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"storedProcedureName": "[dbo].[Update_CDC_Control]",
+											"storedProcedureParameters": {
+												"LastProcessedLSN": {
+													"value": {
+														"value": "@activity('Lookup_Current_Max_LSN').output.firstRow.CurrentMaxLSN",
+														"type": "Expression"
+													},
+													"type": "Byte[]"
+												},
+												"LastRunDate": {
+													"value": {
+														"value": "@variables('Current')",
+														"type": "Expression"
+													},
+													"type": "DateTime"
+												},
+												"LoadStatus": {
+													"value": "Success",
+													"type": "String"
+												},
+												"TableName": {
+													"value": "@item().TableName",
+													"type": "String"
+												}
+											}
+										},
+										"linkedServiceName": {
+											"referenceName": "LS_AzureSqlDB",
+											"type": "LinkedServiceReference"
+										}
+									}
+								],
+								"ifTrueActivities": [
+									{
+										"name": "Update_CDC_Control",
+										"type": "SqlServerStoredProcedure",
+										"dependsOn": [],
+										"policy": {
+											"timeout": "0.12:00:00",
+											"retry": 0,
+											"retryIntervalInSeconds": 30,
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"storedProcedureName": "[dbo].[Update_CDC_Control]",
+											"storedProcedureParameters": {
+												"LastProcessedLSN": {
+													"value": {
+														"value": "@activity('Lookup_Current_Max_LSN').output.firstRow.CurrentMaxLSN",
+														"type": "Expression"
+													},
+													"type": "Byte[]"
+												},
+												"LastRunDate": {
+													"value": {
+														"value": "@variables('Current')",
+														"type": "Expression"
+													},
+													"type": "DateTime"
+												},
+												"LoadStatus": {
+													"value": "Success",
+													"type": "String"
+												},
+												"TableName": {
+													"value": "@item().TableName",
+													"type": "String"
+												}
+											}
+										},
+										"linkedServiceName": {
+											"referenceName": "LS_AzureSqlDB",
+											"type": "LinkedServiceReference"
+										}
+									}
+								]
+							}
+						},
+						{
+							"name": "Lookup_Current_Max_LSN",
+							"type": "Lookup",
+							"dependsOn": [
+								{
+									"activity": "Lookup_CDC_Control",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								},
+								{
+									"activity": "Current Timestamp",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "AzureSqlSource",
+									"sqlReaderQuery": {
+										"value": "SELECT\n    sys.fn_cdc_get_max_lsn() AS CurrentMaxLSN;",
+										"type": "Expression"
+									},
+									"queryTimeout": "02:00:00",
+									"partitionOption": "None"
+								},
+								"dataset": {
+									"referenceName": "Dynamic_SQL_ETL_Control",
+									"type": "DatasetReference"
+								}
+							}
+						},
+						{
+							"name": "Update_CDC_Control_Failed",
+							"type": "SqlServerStoredProcedure",
+							"dependsOn": [
+								{
+									"activity": "Copy data",
+									"dependencyConditions": [
+										"Failed"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"storedProcedureName": "[dbo].[Update_CDC_Control]",
+								"storedProcedureParameters": {
+									"LastRunDate": {
+										"value": {
+											"value": "@variables('Current')",
+											"type": "Expression"
+										},
+										"type": "DateTime"
+									},
+									"LoadStatus": {
+										"value": "Failed",
+										"type": "String"
+									},
+									"TableName": {
+										"value": {
+											"value": "@item().TableName",
+											"type": "Expression"
+										},
+										"type": "String"
+									}
+								}
+							},
+							"linkedServiceName": {
+								"referenceName": "LS_AzureSqlDB",
+								"type": "LinkedServiceReference"
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "Lookup_All_Tables",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderQuery": {
+							"value": "SELECT\n    TableName,\n    SourceSchema,\n    WatermarkColumn,\n    IsActive\nFROM dbo.ETL_Control\nWHERE IsActive = 1;",
+							"type": "Expression"
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "Dynamic_SQL_ETL_Control",
+						"type": "DatasetReference"
+					},
+					"firstRowOnly": false
+				}
+			}
+		],
+		"variables": {
+			"Current": {
+				"type": "String"
+			}
+		},
+		"folder": {
+			"name": "Dynamic"
+		},
+		"annotations": []
+	}
+}
