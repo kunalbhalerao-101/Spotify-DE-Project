@@ -7,7 +7,7 @@
 				"type": "ForEach",
 				"dependsOn": [
 					{
-						"activity": "Lookup_All_Tables",
+						"activity": "All_Tables",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -16,12 +16,12 @@
 				"userProperties": [],
 				"typeProperties": {
 					"items": {
-						"value": "@activity('Lookup_All_Tables').output.value",
+						"value": "@activity('All_Tables').output.value",
 						"type": "Expression"
 					},
 					"activities": [
 						{
-							"name": "Lookup_CDC_Control",
+							"name": "CDC_Control",
 							"type": "Lookup",
 							"dependsOn": [],
 							"policy": {
@@ -53,7 +53,7 @@
 							"type": "Copy",
 							"dependsOn": [
 								{
-									"activity": "Lookup_Current_Max_LSN",
+									"activity": "Current_Max_LSN",
 									"dependencyConditions": [
 										"Succeeded"
 									]
@@ -71,7 +71,7 @@
 								"source": {
 									"type": "AzureSqlSource",
 									"sqlReaderQuery": {
-										"value": "@concat(\n    'SELECT * FROM cdc.',\n    activity('Lookup_CDC_Control').output.firstRow.CaptureInstance,\n    '_CT WHERE __$start_lsn > CONVERT(binary(10), ''',\n    activity('Lookup_CDC_Control').output.firstRow.LastProcessedLSN,\n    ''', 2) AND __$start_lsn <= CONVERT(binary(10), ''',\n    activity('Lookup_Current_Max_LSN').output.firstRow.CurrentMaxLSN,\n    ''', 2)'\n)",
+										"value": "@concat(\n    'SELECT * FROM cdc.',\n    activity('CDC_Control').output.firstRow.CaptureInstance,\n    '_CT WHERE __$start_lsn > CONVERT(binary(10), ''',\n    activity('CDC_Control').output.firstRow.LastProcessedLSN,\n    ''', 2) AND __$start_lsn <= CONVERT(binary(10), ''',\n    activity('Current_Max_LSN').output.firstRow.CurrentMaxLSN,\n    ''', 2)'\n)",
 										"type": "Expression"
 									},
 									"queryTimeout": "02:00:00",
@@ -182,7 +182,7 @@
 											"storedProcedureParameters": {
 												"LastProcessedLSN": {
 													"value": {
-														"value": "@activity('Lookup_Current_Max_LSN').output.firstRow.CurrentMaxLSN",
+														"value": "@activity('Current_Max_LSN').output.firstRow.CurrentMaxLSN",
 														"type": "Expression"
 													},
 													"type": "String"
@@ -273,7 +273,10 @@
 											"storedProcedureName": "[dbo].[Update_CDC_Control]",
 											"storedProcedureParameters": {
 												"LastProcessedLSN": {
-													"value": "@activity('Lookup_Current_Max_LSN').output.firstRow.CurrentMaxLSN",
+													"value": {
+														"value": "@activity('Current_Max_LSN').output.firstRow.CurrentMaxLSN",
+														"type": "Expression"
+													},
 													"type": "String"
 												},
 												"LastRunDate": {
@@ -305,11 +308,11 @@
 							}
 						},
 						{
-							"name": "Lookup_Current_Max_LSN",
+							"name": "Current_Max_LSN",
 							"type": "Lookup",
 							"dependsOn": [
 								{
-									"activity": "Lookup_CDC_Control",
+									"activity": "CDC_Control",
 									"dependencyConditions": [
 										"Succeeded"
 									]
@@ -333,7 +336,7 @@
 								"source": {
 									"type": "AzureSqlSource",
 									"sqlReaderQuery": {
-										"value": "@concat(\n    'SELECT CONVERT(VARCHAR(100), MAX(__$start_lsn), 2) AS CurrentMaxLSN ',\n    'FROM cdc.',\n    activity('Lookup_CDC_Control').output.firstRow.CaptureInstance,\n    '_CT'\n)",
+										"value": "@concat(\n    'SELECT CONVERT(VARCHAR(100), MAX(__$start_lsn), 2) AS CurrentMaxLSN ',\n    'FROM cdc.',\n    activity('CDC_Control').output.firstRow.CaptureInstance,\n    '_CT'\n)",
 										"type": "Expression"
 									},
 									"queryTimeout": "02:00:00",
@@ -396,7 +399,7 @@
 				}
 			},
 			{
-				"name": "Lookup_All_Tables",
+				"name": "All_Tables",
 				"type": "Lookup",
 				"dependsOn": [],
 				"policy": {
